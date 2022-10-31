@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const fs = require('fs');
-const { spawn } = require("child_process");
+const { spawn, exec } = require("child_process");
 const { program } = require('commander');
 const YAML = require('yaml')
 const Table = require('cli-table/lib');
@@ -11,6 +11,27 @@ const clc = require("cli-color");
 
 let services = []
 let dockerContainers = [];
+
+function isObject(item) {
+    return (item && typeof item === 'object' && !Array.isArray(item));
+}
+
+function mergeDeep(target, source) {
+    let output = Object.assign({}, target);
+    if (isObject(target) && isObject(source)) {
+        Object.keys(source).forEach(key => {
+            if (isObject(source[key])) {
+                if (!(key in target))
+                    Object.assign(output, { [key]: source[key] });
+                else
+                    output[key] = mergeDeep(target[key], source[key]);
+            } else {
+                Object.assign(output, { [key]: source[key] });
+            }
+        });
+    }
+    return output;
+}
 
 async function loadDockerContainers() {
     dockerContainers = await docker.container.list()
@@ -25,7 +46,7 @@ function loadServices () {
     if(fs.existsSync('docker-compose.dev.yml')) {
         const file = fs.readFileSync('./docker-compose.dev.yml', 'utf8')
         const dockerCompose = YAML.parse(file)
-        services = {...services, ...dockerCompose.services}
+        services = mergeDeep(services, dockerCompose.services)
     }
 }
 
@@ -70,7 +91,9 @@ async function status() {
             }
         }
         else {
-            table.push([clc.red(serviceId), clc.red('exited'), service.image])
+            if(service.image) {
+                table.push([clc.red(serviceId), clc.red('exited'), service.image])
+            }
         }
         // dockerContainers.map(container => console.log(container.data.Names))
     }
@@ -116,29 +139,28 @@ async function go(where) {
         console.log('missing <where> argument')
         return 1
     }
+    
     let containers = [];
     for(const serviceId in services) {
         const regExp = new RegExp(serviceId)
         containers = [...containers, ...dockerContainers.filter(container => container.data.Names[0].match(regExp))]
     }
-    let running = false
+
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if(whereContainer){
-        running = true
         const container = dockerContainers.find(container => container.data.Names[0] === whereContainer.original)
         spawn('docker', ['exec', '-ti', container.id, 'sh'], { stdio: 'inherit' });
+        return
     }
     // Not found on running containers, searching on dockerfiles
     whereContainer = fuzzy.filter(where, Object.keys(services)).shift()
     if(whereContainer) {
-        running = true
         const envFile = fs.existsSync('docker-compose.env') ? '--env-file=docker-compose.env' : ''
         spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, 'sh'], { stdio: 'inherit' });
+        return
     }
-    if(!running) {
-        console.log('No matching containers found')
-        return 1
-    }
+    console.log('No matching containers found')
+    return 1
 }
 
 program
