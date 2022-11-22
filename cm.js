@@ -196,8 +196,16 @@ async function log(where) {
                 stdout: true,
                 stderr: true
             }).then(stream => {
-                stream.on('data', info => writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + info.toString('utf-8').slice(8), 231))
-                stream.on('error', err => writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + err.toString('utf-8').slice(8), 196))
+                stream.on('data', info =>
+                {
+                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
+                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output, 231)
+                }
+            )
+                stream.on('error', err => {
+                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
+                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output, 196)
+                })
             })
         }
     } else {
@@ -221,8 +229,14 @@ async function log(where) {
                 stderr: true
             }).then(stream => {
                 const color = colors[colorIndex]
-                stream.on('data', info => writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + info.toString('utf-8').slice(8), 231))
-                stream.on('error', err => writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + err.toString('utf-8').slice(8), 196))
+                stream.on('data', info => {
+                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output, 231)
+                })
+                stream.on('error', err => {
+                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output, 196)
+                })
             })
 
             colorIndex++
