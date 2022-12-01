@@ -56,6 +56,65 @@ async function init() {
     loadServices()
 }
 
+async function statusIcon() {
+    const COMMANDS_TO_IGNORE = [
+        new RegExp(/.*?cenv.*?/),
+        new RegExp(/^npx.*?/)
+    ]
+
+    const matchCommandToIgnore = (command) => {
+        return COMMANDS_TO_IGNORE.reduce((prev, commandToIgnoreExp) => {
+            if(prev) return prev
+            return commandToIgnoreExp.test(command)
+        }, false)
+    }
+
+
+    await init()
+    let yellow = 0
+    let red = 0
+    let green = 0
+    for (const serviceId in services) {
+        const service = services[serviceId]
+        const regExp = new RegExp(serviceId)
+        const mathContainers = dockerContainers.filter(container => container.data.Names[0].match(regExp))
+        if (mathContainers.length > 0) {
+            for (container of mathContainers) {
+                const name = container.data.Names[0].replace('/', '')
+                const state = container.data.State
+                if(name.indexOf('bernard-minet') !== -1) {
+                    yellow++
+                } else if(state === 'running'){
+                    green++
+                } else {
+                    red ++
+                }
+            }
+        } else {
+            if (service.image && !matchCommandToIgnore(service.command)) {
+                red ++
+            }
+        }
+    }
+
+
+    const total = green+yellow+red
+
+    if(total/green === 1) {
+        process.stdout.write(clc.green('◉'))
+    }
+
+    if(total/yellow === 1){
+        process.stdout.write(clc.yellow('◍'))
+    }
+
+    if(total/red === 1){
+        process.stdout.write(clc.red('◉'))
+    } else if(red !== 0 && total/red >= 0.5){
+        process.stdout.write(clc.red('◍'))
+    }
+}
+
 async function status() {
     await init()
     const table = new Table({
@@ -254,6 +313,7 @@ Commands :
     cm start                   start all containers from current directory via make docker-run
     cm stop                    stop all containers from current directory via make docker-stop
     cm status                  display containers status from current directory
+    cm icon                    display containers status from current directory with a colored icon
     cm go <fuzzy>              search matching container from current directory & connect to it
     cm log <optional: fuzzy>   display log for selected or all containers
 `).showHelpAfterError()
@@ -266,6 +326,9 @@ const command = program.args[0];
 switch (command) {
     case 'status':
         status()
+        break
+    case 'icon':
+        statusIcon()
         break
     case 'start':
         start()
