@@ -149,7 +149,7 @@ async function go(where) {
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if (whereContainer) {
         const container = dockerContainers.find(container => container.data.Names[0] === whereContainer.original)
-        spawn('docker', ['exec', '-ti', container.id, 'sh'], {stdio: 'inherit'});
+        spawn('docker', ['exec', '-ti', container.id, '/bin/bash'], {stdio: 'inherit'});
         return
     }
     // Not found on running containers, searching on dockerfiles
@@ -158,7 +158,7 @@ async function go(where) {
         const envFile = fs.existsSync('docker-compose.env') ? '--env-file=docker-compose.env' : ''
         // console.log(whereContainer.original)
         // return
-        spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
+        spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, '/bin/bash'], {stdio: 'inherit'});
         return
     }
     console.log('No matching containers found')
