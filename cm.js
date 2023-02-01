@@ -59,7 +59,10 @@ async function init() {
 async function statusIcon() {
     const COMMANDS_TO_IGNORE = [
         new RegExp(/.*?cenv.*?/),
-        new RegExp(/^npx.*?/)
+        new RegExp(/^npx.*?/),
+        new RegExp(/^.*?make dev.*?/),
+        new RegExp(/^.*?run encore.*?/),
+        new RegExp(/^sh -c.*?(yarn|npm) install/),
     ]
 
     const matchCommandToIgnore = (command) => {
@@ -91,7 +94,8 @@ async function statusIcon() {
                 }
             }
         } else {
-            if (service.image && !matchCommandToIgnore(service.command)) {
+            const command = Array.isArray(service.command) ? service.command.join(' ') : service.command
+            if (service.image && !matchCommandToIgnore(command)) {
                 red ++
             }
         }
@@ -208,7 +212,7 @@ async function go(where) {
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if (whereContainer) {
         const container = dockerContainers.find(container => container.data.Names[0] === whereContainer.original)
-        spawn('docker', ['exec', '-ti', container.id, '/bin/bash'], {stdio: 'inherit'});
+        spawn('docker', ['exec', '-ti', container.id, 'sh'], {stdio: 'inherit'});
         return
     }
     // Not found on running containers, searching on dockerfiles
@@ -217,7 +221,7 @@ async function go(where) {
         const envFile = fs.existsSync('docker-compose.env') ? '--env-file=docker-compose.env' : ''
         // console.log(whereContainer.original)
         // return
-        spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, '/bin/bash'], {stdio: 'inherit'});
+        spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
         return
     }
     console.log('No matching containers found')
@@ -233,7 +237,7 @@ async function log(where) {
     }
     await init()
     const colors = [200, 82, 45, 226];
-    let colorIndex = 0
+    let colorIndex = Math.round(Math.random()*(colors.length-1))
 
     if(where) {
         let containers = [];
@@ -257,13 +261,15 @@ async function log(where) {
             }).then(stream => {
                 stream.on('data', info =>
                 {
-                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
-                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output, 231)
+                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join(
+                        "\n" + "".padEnd(where.length+2))
+                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length+2)), 231)
                 }
             )
                 stream.on('error', err => {
-                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
-                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output, 196)
+                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
+                        "\n"+ "".padEnd(where.length+2))
+                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length+2)), 196)
                 })
             })
         }
@@ -279,7 +285,11 @@ async function log(where) {
 
 
         for(container of containers){
-            console.log(clc.xterm(colors[colorIndex])('COULEUR') + colors[colorIndex])
+            // console.log(clc.xterm(colors[colorIndex])('COULEUR') + colors[colorIndex])
+            // console.log('-------------------------')
+            // console.log(container.data.Names[0])
+            // console.log(containers.map(c => c.data.Names[0]))
+            // console.log(containers.find(c => c.data.Names[0] !== container.data.Names[0]))
             const nameToCompare = containers.find(c => c.data.Names[0] !== container.data.Names[0]).data.Names[0].replace('_', '-')
             const name = diff.diffWords(container.data.Names[0].replace('_', '-'), nameToCompare)[1].value.split('_')[0]
             await container.logs({
@@ -289,12 +299,14 @@ async function log(where) {
             }).then(stream => {
                 const color = colors[colorIndex]
                 stream.on('data', info => {
-                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output, 231)
+                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8))
+                        "\n" + "".join("".padEnd(name.length+2))
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length+2)), 231)
                 })
                 stream.on('error', err => {
-                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join("\n")
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output, 196)
+                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
+                        "\n"+ "".padEnd(name.length+2))
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length+2)), 196)
                 })
             })
 
