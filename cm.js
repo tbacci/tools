@@ -163,14 +163,32 @@ async function status() {
     console.log(table.toString());
 }
 
-async function start() {
+async function start(where) {
     await init()
     if (services.length <= 0) {
         console.log('No docker-compose.yml found in current directory')
         return 1
     }
 
-    for (const serviceId in services) {
+    let servicesToStart = services
+
+
+
+    if(where) {
+        let correspondingServices = fuzzy.filter(where, Object.keys(services))
+        if(correspondingServices.length === 0){
+            console.log('No correspongind services found')
+            return
+        }
+
+        console.log('Found ' + correspondingServices.length + ' corresponding service');
+        servicesToStart = correspondingServices.reduce((acc, serv) => {
+            acc[serv.original] = services[serv.original]
+            return acc
+        }, {})
+    }
+
+    for (const serviceId in servicesToStart) {
         const regExp = new RegExp(serviceId)
         const mathContainers = dockerContainers.filter(container => container.data.Names[0].match(regExp))
         if (mathContainers.length > 0) {
@@ -183,12 +201,24 @@ async function start() {
         }
     }
 
-    console.log("\nExecuting make docker-run\n")
+    if(where) {
+        for (const serviceId in servicesToStart) {
+            if(fs.existsSync('docker-compose.env')) {
+                spawn('docker', ['compose', '--env-file=docker-compose.env', 'up', '-d', serviceId], {stdio: 'inherit',});
+            } else {
+                spawn('docker', ['compose', 'up', '-d', serviceId], {stdio: 'inherit',});
 
-    spawn('make', ['docker-run'], {
-        // 'inherit' will use the parent process stdio
-        stdio: 'inherit'
-    })
+            }
+        }
+
+    }else {
+        console.log("\nExecuting make docker-run\n")
+        spawn('make', ['docker-run'], {
+            // 'inherit' will use the parent process stdio
+            stdio: 'inherit'
+        })
+
+    }
 
 }
 
@@ -218,10 +248,12 @@ async function go(where) {
     // Not found on running containers, searching on dockerfiles
     whereContainer = fuzzy.filter(where, Object.keys(services)).shift()
     if (whereContainer) {
-        const envFile = fs.existsSync('docker-compose.env') ? '--env-file=docker-compose.env' : ''
-        // console.log(whereContainer.original)
-        // return
-        spawn('docker', ['compose', envFile, 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
+        if(fs.existsSync('docker-compose.env')) {
+            spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
+        } else {
+            spawn('docker', ['compose', 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
+
+        }
         return
     }
     console.log('No matching containers found')
@@ -322,7 +354,7 @@ program
     .argument('<command>')
     .addHelpText('after', `
 Commands : 
-    cm start                   start all containers from current directory via make docker-run
+    cm start <optional: fuzzy> start all containers from current directory via make docker-run
     cm stop                    stop all containers from current directory via make docker-stop
     cm status                  display containers status from current directory
     cm icon                    display containers status from current directory with a colored icon
@@ -343,7 +375,7 @@ switch (command) {
         statusIcon()
         break
     case 'start':
-        start()
+        start(program.args[1])
         break
     case 'stop':
         stop()
