@@ -322,8 +322,13 @@ async function log(where) {
             // console.log(container.data.Names[0])
             // console.log(containers.map(c => c.data.Names[0]))
             // console.log(containers.find(c => c.data.Names[0] !== container.data.Names[0]))
-            const nameToCompare = containers.find(c => c.data.Names[0] !== container.data.Names[0]).data.Names[0].replace('_', '-')
-            const name = diff.diffWords(container.data.Names[0].replace('_', '-'), nameToCompare)[1].value.split('_')[0]
+            // const nameToCompare = containers.find(c => console.log(c.data.Names))
+            // console.log('OK', container.data.Names)
+            let name = 'LOG';
+            const nameToCompare = containers.find(c => c.data.Names[0] !== container.data.Names[0])?.data.Names[0].replace('_', '-')
+            if(nameToCompare) {
+                name = diff.diffWords(container.data.Names[0].replace('_', '-'), nameToCompare)[1].value.split('_')[0]
+            }
             await container.logs({
                 follow: true,
                 stdout: true,
@@ -332,7 +337,7 @@ async function log(where) {
                 const color = colors[colorIndex]
                 stream.on('data', info => {
                     const output = info.toString('utf-8').split("\n").map(line => line.slice(8))
-                        "\n" + "".join("".padEnd(name.length+2))
+                        .join("\n"+ "".padEnd(name.length+2))
                     writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length+2)), 231)
                 })
                 stream.on('error', err => {
