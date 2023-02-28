@@ -67,7 +67,7 @@ async function statusIcon() {
 
     const matchCommandToIgnore = (command) => {
         return COMMANDS_TO_IGNORE.reduce((prev, commandToIgnoreExp) => {
-            if(prev) return prev
+            if (prev) return prev
             return commandToIgnoreExp.test(command)
         }, false)
     }
@@ -85,36 +85,36 @@ async function statusIcon() {
             for (container of mathContainers) {
                 const name = container.data.Names[0].replace('/', '')
                 const state = container.data.State
-                if(name.indexOf('bernard-minet') !== -1) {
+                if (name.indexOf('bernard-minet') !== -1) {
                     yellow++
-                } else if(state === 'running'){
+                } else if (state === 'running') {
                     green++
                 } else {
-                    red ++
+                    red++
                 }
             }
         } else {
             const command = Array.isArray(service.command) ? service.command.join(' ') : service.command
             if (service.image && !matchCommandToIgnore(command)) {
-                red ++
+                red++
             }
         }
     }
 
 
-    const total = green+yellow+red
+    const total = green + yellow + red
 
-    if(total/green === 1) {
+    if (total / green === 1) {
         process.stdout.write(clc.green('◉'))
     }
 
-    if(total/yellow === 1){
+    if (total / yellow === 1) {
         process.stdout.write(clc.yellow('◍'))
     }
 
-    if(total/red === 1){
+    if (total / red === 1) {
         process.stdout.write(clc.red('◉'))
-    } else if(red !== 0 && total/red >= 0.5){
+    } else if (red !== 0 && total / red >= 0.5) {
         process.stdout.write(clc.red('◍'))
     }
 }
@@ -163,7 +163,8 @@ async function status() {
     console.log(table.toString());
 }
 
-async function start(where) {
+async function start(wheres) {
+
     await init()
     if (services.length <= 0) {
         console.log('No docker-compose.yml found in current directory')
@@ -173,19 +174,21 @@ async function start(where) {
     let servicesToStart = services
 
 
+    if (wheres.length !== 0) {
+        servicesToStart = {}
+        for (where of wheres) {
+            let correspondingServices = fuzzy.filter(where, Object.keys(services))
+            if (correspondingServices.length === 0) {
+                console.log('No correspongind services found')
+                return
+            }
 
-    if(where) {
-        let correspondingServices = fuzzy.filter(where, Object.keys(services))
-        if(correspondingServices.length === 0){
-            console.log('No correspongind services found')
-            return
+            console.log('Found ' + correspondingServices.length + ' corresponding service for ' + where);
+            servicesToStart = {...servicesToStart, ...correspondingServices.reduce((acc, serv) => {
+                acc[serv.original] = services[serv.original]
+                return acc
+            }, {})}
         }
-
-        console.log('Found ' + correspondingServices.length + ' corresponding service');
-        servicesToStart = correspondingServices.reduce((acc, serv) => {
-            acc[serv.original] = services[serv.original]
-            return acc
-        }, {})
     }
 
     for (const serviceId in servicesToStart) {
@@ -201,9 +204,9 @@ async function start(where) {
         }
     }
 
-    if(where) {
+    if (where.length !== 0) {
         for (const serviceId in servicesToStart) {
-            if(fs.existsSync('docker-compose.env')) {
+            if (fs.existsSync('docker-compose.env')) {
                 spawn('docker', ['compose', '--env-file=docker-compose.env', 'up', '-d', serviceId], {stdio: 'inherit',});
             } else {
                 spawn('docker', ['compose', 'up', '-d', serviceId], {stdio: 'inherit',});
@@ -211,7 +214,7 @@ async function start(where) {
             }
         }
 
-    }else {
+    } else {
         console.log("\nExecuting make docker-run\n")
         spawn('make', ['docker-run'], {
             // 'inherit' will use the parent process stdio
@@ -248,7 +251,7 @@ async function go(where) {
     // Not found on running containers, searching on dockerfiles
     whereContainer = fuzzy.filter(where, Object.keys(services)).shift()
     if (whereContainer) {
-        if(fs.existsSync('docker-compose.env')) {
+        if (fs.existsSync('docker-compose.env')) {
             spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
         } else {
             spawn('docker', ['compose', 'run', '--rm', '-ti', whereContainer.original, 'sh'], {stdio: 'inherit'});
@@ -269,9 +272,9 @@ async function log(where) {
     }
     await init()
     const colors = [200, 82, 45, 226];
-    let colorIndex = Math.round(Math.random()*(colors.length-1))
+    let colorIndex = Math.round(Math.random() * (colors.length - 1))
 
-    if(where) {
+    if (where) {
         let containers = [];
         for (const serviceId in services) {
             const regExp = new RegExp(serviceId)
@@ -279,7 +282,7 @@ async function log(where) {
         }
         const fuzzyResult = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
 
-        if(!fuzzyResult){
+        if (!fuzzyResult) {
             console.log('No matching container found');
             return 1
         }
@@ -291,17 +294,16 @@ async function log(where) {
                 stdout: true,
                 stderr: true
             }).then(stream => {
-                stream.on('data', info =>
-                {
-                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                        "\n" + "".padEnd(where.length+2))
-                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length+2)), 231)
-                }
-            )
+                stream.on('data', info => {
+                        const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join(
+                            "\n" + "".padEnd(where.length + 2))
+                        writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length + 2)), 231)
+                    }
+                )
                 stream.on('error', err => {
                     const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                        "\n"+ "".padEnd(where.length+2))
-                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length+2)), 196)
+                        "\n" + "".padEnd(where.length + 2))
+                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length + 2)), 196)
                 })
             })
         }
@@ -316,7 +318,7 @@ async function log(where) {
         }
 
 
-        for(container of containers){
+        for (container of containers) {
             // console.log(clc.xterm(colors[colorIndex])('COULEUR') + colors[colorIndex])
             // console.log('-------------------------')
             // console.log(container.data.Names[0])
@@ -326,7 +328,7 @@ async function log(where) {
             // console.log('OK', container.data.Names)
             let name = 'LOG';
             const nameToCompare = containers.find(c => c.data.Names[0] !== container.data.Names[0])?.data.Names[0].replace('_', '-')
-            if(nameToCompare) {
+            if (nameToCompare) {
                 name = diff.diffWords(container.data.Names[0].replace('_', '-'), nameToCompare)[1].value.split('_')[0]
             }
             await container.logs({
@@ -337,13 +339,13 @@ async function log(where) {
                 const color = colors[colorIndex]
                 stream.on('data', info => {
                     const output = info.toString('utf-8').split("\n").map(line => line.slice(8))
-                        .join("\n"+ "".padEnd(name.length+2))
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length+2)), 231)
+                        .join("\n" + "".padEnd(name.length + 2))
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length + 2)), 231)
                 })
                 stream.on('error', err => {
                     const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                        "\n"+ "".padEnd(name.length+2))
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length+2)), 196)
+                        "\n" + "".padEnd(name.length + 2))
+                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length + 2)), 196)
                 })
             })
 
@@ -359,12 +361,12 @@ program
     .argument('<command>')
     .addHelpText('after', `
 Commands : 
-    cm start <optional: fuzzy> start all containers from current directory via make docker-run
-    cm stop                    stop all containers from current directory via make docker-stop
-    cm status                  display containers status from current directory
-    cm icon                    display containers status from current directory with a colored icon
-    cm go <fuzzy>              search matching container from current directory & connect to it
-    cm log <optional: fuzzy>   display log for selected or all containers
+    cm start <optional: fuzzies> start all containers from current directory via make docker-run
+    cm stop                      stop all containers from current directory via make docker-stop
+    cm status                    display containers status from current directory
+    cm icon                      display containers status from current directory with a colored icon
+    cm go <fuzzy>                search matching container from current directory & connect to it
+    cm log <optional: fuzzy>     display log for selected or all containers
 `).showHelpAfterError()
 
 program.parse();
@@ -380,7 +382,8 @@ switch (command) {
         statusIcon()
         break
     case 'start':
-        start(program.args[1])
+        const args = program.args.filter(arg => arg !== 'start')
+        start(args)
         break
     case 'stop':
         stop()
