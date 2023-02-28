@@ -174,7 +174,7 @@ async function start(wheres) {
     let servicesToStart = services
 
 
-    if (wheres.length !== 0) {
+    if(wheres.length !== 0) {
         servicesToStart = {}
         for (where of wheres) {
             let correspondingServices = fuzzy.filter(where, Object.keys(services))
@@ -204,7 +204,7 @@ async function start(wheres) {
         }
     }
 
-    if (where.length !== 0) {
+    if(wheres.length !== 0) {
         for (const serviceId in servicesToStart) {
             if (fs.existsSync('docker-compose.env')) {
                 spawn('docker', ['compose', '--env-file=docker-compose.env', 'up', '-d', serviceId], {stdio: 'inherit',});
