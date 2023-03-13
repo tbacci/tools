@@ -273,6 +273,18 @@ async function log(where) {
         txt = txt.replaceAll('CRITICAL', clc.bgXterm(196).xterm(88)('CRITICAL'))
         process.stdout.write(clc.xterm(xterm)(txt))
     }
+    const doSlice = (outputBuffer) => {
+        // Les en-tête à supprimer
+        const buffer1 = Buffer.from(Uint8Array.from([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+        const buffer2 = Buffer.from(Uint8Array.from([0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+        const head = Buffer.from(outputBuffer.slice(0,7));
+
+        if(head.equals(buffer1) || head.equals(buffer2)) {
+            return outputBuffer.slice(8)
+        }
+        return outputBuffer
+    }
+
     await init()
     const colors = [200, 82, 45, 226];
     let colorIndex = Math.round(Math.random() * (colors.length - 1))
@@ -298,15 +310,19 @@ async function log(where) {
                 stderr: true
             }).then(stream => {
                 stream.on('data', info => {
-                        const output = info.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                            "\n" + "".padEnd(where.length + 2))
-                        writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length + 2)), 231)
+                        const output = info.toString('utf-8').split("\n").map(line => doSlice(line))
+                            .filter(v => v !== '')
+                            .map(v => "\n" + clc.xterm(color)(name.toUpperCase() + ': ') +v)
+                            .join('')
+                        writeLog(output, 231)
                     }
                 )
                 stream.on('error', err => {
-                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                        "\n" + "".padEnd(where.length + 2))
-                    writeLog(clc.xterm(colors[colorIndex])(where.toUpperCase() + ': ') + output.slice(0, -(where.length + 2)), 196)
+                    const output = err.toString('utf-8').split("\n").map(line => doSlice(line))
+                        .filter(v => v !== '')
+                        .map(v => "\n" + clc.xterm(color)(name.toUpperCase() + ': ') +v)
+                        .join('')
+                    writeLog(output, 196)
                 })
             })
         }
@@ -341,14 +357,19 @@ async function log(where) {
             }).then(stream => {
                 const color = colors[colorIndex]
                 stream.on('data', info => {
-                    const output = info.toString('utf-8').split("\n").map(line => line.slice(8))
-                        .join("\n" + "".padEnd(name.length + 2))
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length + 2)), 231)
+                    const output = info.toString('utf-8').split("\n").map(line => doSlice(line))
+                        .filter(v => v !== '')
+                        .map(v => "\n" + clc.xterm(color)(name.toUpperCase() + ': ') +v)
+                        .join('')
+                    writeLog(output, 231)
                 })
                 stream.on('error', err => {
-                    const output = err.toString('utf-8').split("\n").map(line => line.slice(8)).join(
-                        "\n" + "".padEnd(name.length + 2))
-                    writeLog(clc.xterm(color)(name.toUpperCase() + ': ') + output.slice(0, -(name.length + 2)), 196)
+                    const output = err.toString('utf-8').split("\n").map(line => doSlice(line))
+                        .filter(v => v !== '')
+                        .map(v => "\n" + clc.xterm(color)(name.toUpperCase() + ': ') +v)
+                        .join('')
+
+                    writeLog(output, 196)
                 })
             })
 
