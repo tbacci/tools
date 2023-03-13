@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const os = require("os");
 const {spawn, exec} = require("child_process");
 const {program} = require('commander');
 const YAML = require('yaml')
@@ -242,19 +243,21 @@ async function go(where) {
         containers = [...containers, ...dockerContainers.filter(container => container.data.Names[0].match(regExp))]
     }
 
+    const uidGid = os.userInfo().uid + ':' + os.userInfo().gid;
+
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if (whereContainer) {
         const container = dockerContainers.find(container => container.data.Names[0] === whereContainer.original)
-        spawn('docker', ['exec', '-ti', container.id, 'bash'], {stdio: 'inherit'});
+        spawn('docker', ['exec', '-u', uidGid, '-ti', container.id, 'bash'], {stdio: 'inherit'});
         return
     }
     // Not found on running containers, searching on dockerfiles
     whereContainer = fuzzy.filter(where, Object.keys(services)).shift()
     if (whereContainer) {
         if (fs.existsSync('docker-compose.env')) {
-            spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm', '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
+            spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm',  '-u', uidGid, '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
         } else {
-            spawn('docker', ['compose', 'run', '--rm', '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
+            spawn('docker', ['compose', 'run', '--rm',  '-u', uidGid, '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
 
         }
         return
