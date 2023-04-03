@@ -304,11 +304,20 @@ async function log(where) {
 
         const whereContainer = containers.find(container => container.data.Names[0] === fuzzyResult.original)
         if (whereContainer) {
+            const nameRegex = new RegExp(/\/(?:[\w]+)-(?:[\w]+)-([\w]+)-(?:[\d]+)/)
+            let name = whereContainer.data.Names[0]
+
+            if(nameRegex.test(name)) {
+                name = nameRegex.exec(name)[1]
+            }
+
+            const color = colors[colorIndex]
             await whereContainer.logs({
                 follow: true,
                 stdout: true,
                 stderr: true
             }).then(stream => {
+                console.log(whereContainer)
                 stream.on('data', info => {
                         const output = info.toString('utf-8').split("\n").map(line => doSlice(line))
                             .filter(v => v !== '')
