@@ -214,20 +214,35 @@ async function start(wheres) {
 
             }
         }
-
     } else {
-        console.log("\nExecuting make docker-run\n")
-        spawn('make', ['docker-run'], {
-            // 'inherit' will use the parent process stdio
-            stdio: 'inherit'
-        })
+        const makefile = fs.readFileSync('Makefile', { encoding: 'utf-8'});
 
+        if(/docker-run:/.test(makefile)) {
+            console.log("\nExecuting make docker-run\n")
+            spawn('make', ['docker-run'], {
+                // 'inherit' will use the parent process stdio
+                stdio: 'inherit'
+            })
+        } else {
+            spawn('docker', ['compose', 'up', '-d'], {
+                // 'inherit' will use the parent process stdio
+                stdio: 'inherit'
+            })
+        }
     }
-
 }
 
 function stop() {
-    spawn('make', ['docker-stop'], {stdio: 'inherit'})
+    const makefile = fs.readFileSync('Makefile', { encoding: 'utf-8'});
+
+    if(/docker-stop:/.test(makefile)) {
+        spawn('make', ['docker-stop'], {stdio: 'inherit'})
+    } else {
+        spawn('docker', ['compose', 'down', '--remove-orphans'], {
+            // 'inherit' will use the parent process stdio
+            stdio: 'inherit'
+        })
+    }
 }
 
 async function go(where, rootUser) {
@@ -387,6 +402,7 @@ async function log(where) {
 
     return
 }
+program.parse();
 
 program
     .version('1.0.0')
@@ -401,8 +417,6 @@ Commands :
     cm go <fuzzy>                search matching container from current directory & connect to it
     cm log <optional: fuzzy>     display log for selected or all containers
 `).showHelpAfterError()
-
-program.parse();
 
 
 const command = program.args[0];
