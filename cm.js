@@ -215,7 +215,7 @@ async function start(wheres) {
             }
         }
     } else {
-        const makefile = fs.readFileSync('Makefile', { encoding: 'utf-8'});
+        const makefile = fs.existsSync('Makefile') ? fs.readFileSync('Makefile', { encoding: 'utf-8'}) : '';
 
         if(/docker-run:/.test(makefile)) {
             console.log("\nExecuting make docker-run\n")
@@ -233,7 +233,7 @@ async function start(wheres) {
 }
 
 function stop() {
-    const makefile = fs.readFileSync('Makefile', { encoding: 'utf-8'});
+    const makefile = fs.existsSync('Makefile') ? fs.readFileSync('Makefile', { encoding: 'utf-8'}) : '';
 
     if(/docker-stop:/.test(makefile)) {
         spawn('make', ['docker-stop'], {stdio: 'inherit'})
@@ -402,7 +402,6 @@ async function log(where) {
 
     return
 }
-program.parse();
 
 program
     .version('1.0.0')
@@ -417,6 +416,8 @@ Commands :
     cm go <fuzzy>                search matching container from current directory & connect to it
     cm log <optional: fuzzy>     display log for selected or all containers
 `).showHelpAfterError()
+
+program.parse();
 
 
 const command = program.args[0];
