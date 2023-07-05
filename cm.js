@@ -245,8 +245,9 @@ function stop() {
     }
 }
 
-async function go(where, rootUser) {
+async function go(where, rootUser, bash = true) {
     await init()
+    const command = bash ? 'bash' : 'sh'
     if (!where) {
         console.log('missing <where> argument')
         return 1
@@ -263,16 +264,16 @@ async function go(where, rootUser) {
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if (whereContainer) {
         const container = dockerContainers.find(container => container.data.Names[0] === whereContainer.original)
-        spawn('docker', ['exec', ...uidGid, '-ti', container.id, 'bash'], {stdio: 'inherit'});
+        spawn('docker', ['exec', ...uidGid, '-ti', container.id, command], {stdio: 'inherit'});
         return
     }
     // Not found on running containers, searching on dockerfiles
     whereContainer = fuzzy.filter(where, Object.keys(services)).shift()
     if (whereContainer) {
         if (fs.existsSync('docker-compose.env')) {
-            spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm', ...uidGid, '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
+            spawn('docker', ['compose', '--env-file=docker-compose.env', 'run', '--rm', ...uidGid, '-ti', whereContainer.original, command], {stdio: 'inherit'});
         } else {
-            spawn('docker', ['compose', 'run', '--rm',  ...uidGid, '-ti', whereContainer.original, 'bash'], {stdio: 'inherit'});
+            spawn('docker', ['compose', 'run', '--rm',  ...uidGid, '-ti', whereContainer.original, command], {stdio: 'inherit'});
 
         }
         return
@@ -407,6 +408,7 @@ program
     .version('1.0.0')
     .argument('<command>')
     .option('-r', 'cm go with root user', false)
+    .option('-s', 'cm go with sh instead of bash', false)
     .addHelpText('after', `
 Commands : 
     cm start <optional: fuzzies> start all containers from current directory via make docker-run
@@ -437,7 +439,7 @@ switch (command) {
         stop()
         break
     case 'go':
-        go(program.args[1], program.opts().r)
+        go(program.args[1], program.opts().r, !program.opts().s)
         break
     case 'log':
         log(program.args[1])
