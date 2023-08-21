@@ -245,7 +245,7 @@ function stop() {
     }
 }
 
-async function go(where, rootUser, bash = true) {
+async function go(where, asCurrentUser, bash = true) {
     await init()
     const command = bash ? 'bash' : 'sh'
     if (!where) {
@@ -259,7 +259,7 @@ async function go(where, rootUser, bash = true) {
         containers = [...containers, ...dockerContainers.filter(container => container.data.Names[0].match(regExp))]
     }
 
-    const uidGid = rootUser ? [] : ['-u', os.userInfo().uid + ':' + os.userInfo().gid];
+    const uidGid = !asCurrentUser ? [] : ['-u', os.userInfo().uid + ':' + os.userInfo().gid];
 
     let whereContainer = fuzzy.filter(where, containers.map(container => container.data.Names[0])).shift()
     if (whereContainer) {
@@ -407,7 +407,7 @@ async function log(where) {
 program
     .version('1.0.0')
     .argument('<command>')
-    .option('-r', 'cm go with root user', false)
+    .option('-u', 'cm go with current user', false)
     .option('-s', 'cm go with sh instead of bash', false)
     .addHelpText('after', `
 Commands : 
@@ -439,7 +439,7 @@ switch (command) {
         stop()
         break
     case 'go':
-        go(program.args[1], program.opts().r, !program.opts().s)
+        go(program.args[1], program.opts().u, !program.opts().s)
         break
     case 'log':
         log(program.args[1])
